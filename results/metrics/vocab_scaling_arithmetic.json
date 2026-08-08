@@ -1,0 +1,73 @@
+{
+  "note": "ARITHMETIC, not measured. D = 8096 (course reference width). Byte-grid head = D x POS_DIM x 257; dense head = D x V. Memory = params x 16 bytes (AdamW mixed-precision accounting).",
+  "pos_dim": 32,
+  "head_char_dim": 257,
+  "crossover_vocab": 8224.0,
+  "crossover_note": "Below V = POS_DIM x 257 = 8,224 (~CODE_DIM 8,192) the byte-grid head is STRICTLY WORSE than dense.",
+  "rows": [
+    {
+      "vocab": 8192,
+      "dense_head_params": 66322432,
+      "bytegrid_head_params": 66581504,
+      "dense_train_gb_16B": 1.061158912,
+      "bytegrid_train_gb_16B": 1.065304064,
+      "ratio_dense_over_bytegrid": 0.9961089494163424
+    },
+    {
+      "vocab": 16384,
+      "dense_head_params": 132644864,
+      "bytegrid_head_params": 66581504,
+      "dense_train_gb_16B": 2.122317824,
+      "bytegrid_train_gb_16B": 1.065304064,
+      "ratio_dense_over_bytegrid": 1.9922178988326849
+    },
+    {
+      "vocab": 32768,
+      "dense_head_params": 265289728,
+      "bytegrid_head_params": 66581504,
+      "dense_train_gb_16B": 4.244635648,
+      "bytegrid_train_gb_16B": 1.065304064,
+      "ratio_dense_over_bytegrid": 3.9844357976653697
+    },
+    {
+      "vocab": 65536,
+      "dense_head_params": 530579456,
+      "bytegrid_head_params": 66581504,
+      "dense_train_gb_16B": 8.489271296,
+      "bytegrid_train_gb_16B": 1.065304064,
+      "ratio_dense_over_bytegrid": 7.968871595330739
+    },
+    {
+      "vocab": 131072,
+      "dense_head_params": 1061158912,
+      "bytegrid_head_params": 66581504,
+      "dense_train_gb_16B": 16.978542592,
+      "bytegrid_train_gb_16B": 1.065304064,
+      "ratio_dense_over_bytegrid": 15.937743190661479
+    },
+    {
+      "vocab": 262144,
+      "dense_head_params": 2122317824,
+      "bytegrid_head_params": 66581504,
+      "dense_train_gb_16B": 33.957085184,
+      "bytegrid_train_gb_16B": 1.065304064,
+      "ratio_dense_over_bytegrid": 31.875486381322958
+    },
+    {
+      "vocab": 524288,
+      "dense_head_params": 4244635648,
+      "bytegrid_head_params": 66581504,
+      "dense_train_gb_16B": 67.914170368,
+      "bytegrid_train_gb_16B": 1.065304064,
+      "ratio_dense_over_bytegrid": 63.750972762645915
+    },
+    {
+      "vocab": 1000000,
+      "dense_head_params": 8096000000,
+      "bytegrid_head_params": 66581504,
+      "dense_train_gb_16B": 129.536,
+      "bytegrid_train_gb_16B": 1.065304064,
+      "ratio_dense_over_bytegrid": 121.59533073929961
+    }
+  ]
+}

@@ -1,0 +1,142 @@
+{
+  "name": "smoke_arm_e_kron_bytegrid_tied",
+  "seed": 1337,
+  "wall_clock_sec": 14.4,
+  "tokens_seen": 983040,
+  "tokens_per_sec_last": 224215,
+  "params_total": 13976448,
+  "params_input": 3145728,
+  "params_head": 12288,
+  "params_trunk": 10818432,
+  "train_memory_gb_16B_accounting": 0.224,
+  "own_loss": 4.741419792175293,
+  "comparable_nll": 9.719606399536133,
+  "ppl": 16640.6936555354,
+  "exact_acc_unconstrained": 0.0,
+  "exact_acc_constrained": 0.0,
+  "invalid_rate": 1.0,
+  "nll_positions": 32768,
+  "breakdown_unconstrained": {
+    "by_script": {
+      "latin": {
+        "n": 9269,
+        "acc": 0.0
+      },
+      "devanagari": {
+        "n": 23439,
+        "acc": 0.0
+      },
+      "other": {
+        "n": 60,
+        "acc": 0.0
+      }
+    },
+    "by_decile": {
+      "0": {
+        "n": 54,
+        "acc": 0.0
+      },
+      "1": {
+        "n": 136,
+        "acc": 0.0
+      },
+      "2": {
+        "n": 120,
+        "acc": 0.0
+      },
+      "3": {
+        "n": 171,
+        "acc": 0.0
+      },
+      "4": {
+        "n": 172,
+        "acc": 0.0
+      },
+      "5": {
+        "n": 267,
+        "acc": 0.0
+      },
+      "6": {
+        "n": 324,
+        "acc": 0.0
+      },
+      "7": {
+        "n": 645,
+        "acc": 0.0
+      },
+      "8": {
+        "n": 1020,
+        "acc": 0.0
+      },
+      "9": {
+        "n": 29859,
+        "acc": 0.0
+      }
+    }
+  },
+  "breakdown_constrained": {
+    "by_script": {
+      "latin": {
+        "n": 2073,
+        "acc": 0.0
+      },
+      "devanagari": {
+        "n": 2011,
+        "acc": 0.0
+      },
+      "other": {
+        "n": 12,
+        "acc": 0.0
+      }
+    },
+    "by_decile": {
+      "0": {
+        "n": 6,
+        "acc": 0.0
+      },
+      "1": {
+        "n": 18,
+        "acc": 0.0
+      },
+      "2": {
+        "n": 31,
+        "acc": 0.0
+      },
+      "3": {
+        "n": 27,
+        "acc": 0.0
+      },
+      "4": {
+        "n": 36,
+        "acc": 0.0
+      },
+      "5": {
+        "n": 57,
+        "acc": 0.0
+      },
+      "6": {
+        "n": 61,
+        "acc": 0.0
+      },
+      "7": {
+        "n": 139,
+        "acc": 0.0
+      },
+      "8": {
+        "n": 220,
+        "acc": 0.0
+      },
+      "9": {
+        "n": 3501,
+        "acc": 0.0
+      }
+    }
+  },
+  "eval_protocol": {
+    "eval_batches": 2,
+    "nll_batches": 8,
+    "exact_batches": 4,
+    "constrained_positions": 4096,
+    "ar_nll_positions": 1024
+  }
+}

@@ -1,0 +1,41 @@
+name: smoke_arm_d_kron_bytegrid_ar
+out_dir: results
+model:
+  d_model: 384
+  n_layers: 6
+  n_heads: 6
+  d_ff_mult: 4
+  seq_len: 512
+  dropout: 0.0
+  vocab_size: 32768
+  input_path: kronecker
+  output_head: bytegrid_ar
+  tie_projection: false
+  pos_dim: 32
+  ar_d_local: 128
+  ar_n_layers: 2
+  ar_n_heads: 4
+train:
+  seed: 1337
+  max_steps: 60
+  batch_size: 32
+  grad_accum: 1
+  lr: 0.0003
+  warmup_steps: 500
+  min_lr_frac: 0.1
+  weight_decay: 0.1
+  betas:
+  - 0.9
+  - 0.95
+  grad_clip: 1.0
+  eval_every: 30
+  eval_batches: 2
+  checkpoint_every: 60
+  amp: true
+  device: auto
+data:
+  data_dir: data
+  tokenizer_dir: data/tokenizer
+  train_bin: data/train.bin
+  val_bin: data/val.bin
+  token_dtype: uint16

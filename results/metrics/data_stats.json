@@ -1,0 +1,43 @@
+{
+  "vocab_size": 32768,
+  "seed_note": "data pipeline is deterministic (no RNG)",
+  "train_tokens": 103502834,
+  "train_tokens_per_lang": {
+    "en": 26512343,
+    "hi": 76990491
+  },
+  "val_tokens": 2011529,
+  "val_tokens_per_lang": {
+    "en": 545521,
+    "hi": 1466008
+  },
+  "script_share": {
+    "latin": {
+      "vocab_entries": 28303,
+      "token_share": 0.2855330801859976
+    },
+    "devanagari": {
+      "vocab_entries": 3753,
+      "token_share": 0.710267807739448
+    },
+    "telugu": {
+      "vocab_entries": 0,
+      "token_share": 0.0
+    },
+    "other": {
+      "vocab_entries": 712,
+      "token_share": 0.004199112074554403
+    }
+  },
+  "roundtrip": {
+    "latin": {
+      "lossless": true,
+      "fertility": 1.417
+    },
+    "devanagari": {
+      "lossless": true,
+      "fertility": 5.9
+    }
+  },
+  "wall_seconds": 143.9
+}

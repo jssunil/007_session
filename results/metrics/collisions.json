@@ -1,0 +1,80 @@
+{
+  "32": {
+    "pos_dim": 32,
+    "vocab_size": 32768,
+    "n_groups": 0,
+    "tokens_involved": 0,
+    "ceiling_unweighted": 1.0,
+    "ceiling_freq_weighted": 1.0,
+    "per_script": {
+      "devanagari": {
+        "vocab_entries": 3754,
+        "tokens_in_collisions": 0,
+        "groups": 0
+      },
+      "latin": {
+        "vocab_entries": 28334,
+        "tokens_in_collisions": 0,
+        "groups": 0
+      },
+      "other": {
+        "vocab_entries": 680,
+        "tokens_in_collisions": 0,
+        "groups": 0
+      }
+    },
+    "examples": {}
+  },
+  "48": {
+    "pos_dim": 48,
+    "vocab_size": 32768,
+    "n_groups": 0,
+    "tokens_involved": 0,
+    "ceiling_unweighted": 1.0,
+    "ceiling_freq_weighted": 1.0,
+    "per_script": {
+      "devanagari": {
+        "vocab_entries": 3754,
+        "tokens_in_collisions": 0,
+        "groups": 0
+      },
+      "latin": {
+        "vocab_entries": 28334,
+        "tokens_in_collisions": 0,
+        "groups": 0
+      },
+      "other": {
+        "vocab_entries": 680,
+        "tokens_in_collisions": 0,
+        "groups": 0
+      }
+    },
+    "examples": {}
+  },
+  "64": {
+    "pos_dim": 64,
+    "vocab_size": 32768,
+    "n_groups": 0,
+    "tokens_involved": 0,
+    "ceiling_unweighted": 1.0,
+    "ceiling_freq_weighted": 1.0,
+    "per_script": {
+      "devanagari": {
+        "vocab_entries": 3754,
+        "tokens_in_collisions": 0,
+        "groups": 0
+      },
+      "latin": {
+        "vocab_entries": 28334,
+        "tokens_in_collisions": 0,
+        "groups": 0
+      },
+      "other": {
+        "vocab_entries": 680,
+        "tokens_in_collisions": 0,
+        "groups": 0
+      }
+    },
+    "examples": {}
+  }
+}
