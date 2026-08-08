@@ -4,6 +4,35 @@ Running log of working sessions on this repo. Newest entry first.
 
 ---
 
+## 2026-08-08 (later) — GitHub publish, interim README, trainer email
+
+- Repo pushed to GitHub as **public**: https://github.com/jssunil/007_session
+  (account jssunil, branch main). .gitignore excludes data binaries (1.2 GB)
+  and checkpoints; the trained tokenizer IS committed for exact repro.
+- Interim README written and pushed: thesis, measured-only numbers (param
+  counts at 32K/131K, data stats, zero-collision audit at pos_dim 32/48/64),
+  arithmetic tables labelled as such, portability guide (clone → dataset
+  rebuild → tests → run/resume on Ubuntu/AWS; checkpoints are cross-OS
+  portable, copy them manually to continue a run elsewhere).
+- Ubuntu fallback plan captured in working_memory.md: probe arm A on Windows
+  first (TdrDelay=60 now set); migrate to Linux only if it crashes again.
+- Gmail draft to session trainer created (draft id r-5323464324718909841,
+  recipient left blank — user must fill in address and send). Asks: does the
+  discrete-byte-prediction reframe count as solving Problem 5; collision
+  ceiling on a binding vocab?; small scale OK?; highlight tied arm?; deadline/
+  format/negative-result acceptability.
+
+### Where to pick up next session
+
+1. (If not done) reboot → TdrDelay takes effect.
+2. Resume smoke test: run any _smoke config twice (second run must print
+   "resuming from ... at step N") — the resume-LOAD path is still unverified.
+3. Full arms in order: A, C (go/no-go on comparable-NLL), then B, D, E.
+   `python experiments/run.py experiments/configs/arm_a_dense_dense.yaml`
+4. Then M8 anchors (64K vocab: prepare_data.py --vocab-size 65536 --tag _64k
+   --dtype uint32) and the final README rewrite (M9) from measured results.
+5. Commit + push results as they land.
+
 ## 2026-08-08 — GPU driver crash diagnosis + crash-resilience fixes
 
 ### What happened to the full-arm runs
