@@ -334,6 +334,7 @@ def main() -> None:
     }
     logger.log({"event": "final", **blob})
     out = Path(cfg.out_dir) / "metrics" / f"{cfg.name}.json"
+    out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(blob, indent=2), encoding="utf-8")
     logger.close()
     print(f"[{cfg.name}] done in {blob['wall_clock_sec']}s -> {out}")
