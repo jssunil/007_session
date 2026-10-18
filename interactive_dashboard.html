@@ -163,8 +163,8 @@
                         <li class="flex items-start gap-3">
                             <span class="text-emerald-400 font-bold">✓</span>
                             <div>
-                                <strong class="text-white">Controlled 5-Arm Empirical Benchmark:</strong>
-                                Validated across 5 PyTorch model architectures (Arms A, B, C, D, E) comparing loss, token-level NLL on a common probability basis, trie-constrained decoding, and hardware throughput.
+                                <strong class="text-white">Smoke-Tested Arms (not a benchmark yet):</strong>
+                                Arms A, C, D, E and the new whole-token arm F ran for 60 steps on 983k tokens (1 seed) on a common token-NLL basis. These runs check the pipeline only; full matched runs are still pending. See the Benchmarks tab.
                             </div>
                         </li>
                     </ul>
@@ -334,8 +334,8 @@
         <section id="content-benchmarks" class="space-y-6 hidden">
             <div class="glass-card rounded-2xl p-6 space-y-6 border border-brand-500/20">
                 <div>
-                    <h2 class="text-2xl font-bold text-white tracking-tight">5-Arm Controlled Empirical Experiment Results</h2>
-                    <p class="text-sm text-gray-400">Comparing baseline Dense models against Kronecker Parallel, Autoregressive, and Tied Byte-Grid Heads.</p>
+                    <h2 class="text-2xl font-bold text-white tracking-tight">Experiment Arms: Parameters and Smoke Results</h2>
+                    <p class="text-sm text-gray-400">Dense baseline vs Kronecker Parallel, Autoregressive, Tied and Whole-Token Byte-Grid Heads. Parameter counts are exact; quality numbers are smoke-scale only.</p>
                 </div>
 
                 <!-- Comparative Table -->
@@ -406,6 +406,39 @@
                             </tr>
                         </tbody>
                     </table>
+                </div>
+
+                <!-- Smoke quality results -->
+                <div class="space-y-3">
+                    <h3 class="text-lg font-bold text-white">Smoke results: 983,040 tokens, 60 steps, 1 seed, D=384 (NOT a benchmark)</h3>
+                    <p class="text-xs text-gray-400">Far too short to rank architectures. Arm F rows ran under a 75% GPU duty cap; for F the constrained column is the vocab-MAP decode (best-scoring real token).</p>
+                    <div class="overflow-x-auto custom-scrollbar rounded-xl border border-gray-800">
+                        <table class="w-full text-left text-sm text-gray-300">
+                            <thead class="bg-gray-900 text-xs uppercase font-mono text-gray-400 border-b border-gray-800">
+                                <tr>
+                                    <th class="p-4">Arm</th>
+                                    <th class="p-4">Head</th>
+                                    <th class="p-4">Token NLL</th>
+                                    <th class="p-4">Invalid (unconstrained)</th>
+                                    <th class="p-4">Exact acc (constrained)</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-800 font-mono text-xs bg-gray-950">
+                                <tr><td class="p-4 font-bold text-white">A</td><td class="p-4">Dense</td><td class="p-4">8.99</td><td class="p-4">0%</td><td class="p-4">8.6% (trie)</td></tr>
+                                <tr><td class="p-4 font-bold text-white">C</td><td class="p-4">Parallel byte-grid</td><td class="p-4">8.45</td><td class="p-4 text-red-400">98.9%</td><td class="p-4">1.7% (vocab-MAP)</td></tr>
+                                <tr><td class="p-4 font-bold text-white">D</td><td class="p-4">Byte-grid + local AR</td><td class="p-4">11.34 (1,024 positions)</td><td class="p-4 text-red-400">99.97%</td><td class="p-4">0% (trie)</td></tr>
+                                <tr><td class="p-4 font-bold text-white">E</td><td class="p-4">Tied byte-grid</td><td class="p-4">9.72</td><td class="p-4 text-red-400">100%</td><td class="p-4">0% (trie)</td></tr>
+                                <tr><td class="p-4 font-bold text-white">F</td><td class="p-4">Whole-token loss, no bias</td><td class="p-4">6.75</td><td class="p-4 text-amber-400">87.8%</td><td class="p-4">3.4% (vocab-MAP)</td></tr>
+                                <tr class="bg-emerald-950/20"><td class="p-4 font-bold text-emerald-400">F</td><td class="p-4">Whole-token loss + log-unigram bias</td><td class="p-4 text-emerald-400">5.20</td><td class="p-4 text-red-400">99.6%</td><td class="p-4 text-emerald-400">13.0% (vocab-MAP)</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <ul class="text-xs text-gray-400 list-disc pl-5 space-y-1">
+                        <li>Parallel and tied heads almost never emit a real token unconstrained; tying alone does not fix it.</li>
+                        <li>Arm F's whole-token loss beats A and C even without the bias (6.75); the frequency-prior bias takes it to 5.20. Both are 60-step hints, not rankings.</li>
+                        <li>Arm F's bias adds V parameters, so its head is no longer strictly constant in V. Speed after the embedding_bag change: ~36k tok/s (was 5.3k) vs ~222k for arm C.</li>
+                        <li>The throughput column in the table above is from earlier measurements; no full-length matched run has completed yet.</li>
+                    </ul>
                 </div>
 
                 <!-- Parameters Comparison Chart -->
