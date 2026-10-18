@@ -16,7 +16,7 @@ from torch import Tensor, nn
 from kronecker_v2.codec import KroneckerCodec
 from kronecker_v2.config import ModelConfig
 from kronecker_v2.embedding import DenseEmbedding, KroneckerEmbedding
-from kronecker_v2.heads import ByteGridARHead, ByteGridHead, DenseHead
+from kronecker_v2.heads import ByteGridARHead, ByteGridHead, ByteGridTokenHead, DenseHead
 
 
 class RMSNorm(nn.Module):
@@ -61,10 +61,12 @@ class Block(nn.Module):
 class LM(nn.Module):
     """Trunk + configurable input path and output head."""
 
-    def __init__(self, cfg: ModelConfig, codec: KroneckerCodec | None = None):
+    def __init__(self, cfg: ModelConfig, codec: KroneckerCodec | None = None,
+                 token_freqs=None):
         super().__init__()
         self.cfg = cfg
-        needs_codec = cfg.input_path == "kronecker" or cfg.output_head in ("bytegrid", "bytegrid_ar")
+        needs_codec = cfg.input_path == "kronecker" or cfg.output_head in (
+            "bytegrid", "bytegrid_ar", "bytegrid_token")
         if needs_codec:
             assert codec is not None, "this configuration requires a codec"
             assert codec.pos_dim == cfg.pos_dim
@@ -89,6 +91,13 @@ class LM(nn.Module):
                 assert cfg.input_path == "kronecker", "tying requires the Kronecker input"
                 tied = self.embedding.projection
             self.head = ByteGridHead(cfg.d_model, cfg.pos_dim, codec, tied_projection=tied)
+        elif cfg.output_head == "bytegrid_token":
+            tied = None
+            if cfg.tie_projection:
+                assert cfg.input_path == "kronecker", "tying requires the Kronecker input"
+                tied = self.embedding.projection
+            self.head = ByteGridTokenHead(cfg.d_model, cfg.pos_dim, codec, tied_projection=tied,
+                                          token_freqs=token_freqs, use_token_bias=cfg.token_bias)
         elif cfg.output_head == "bytegrid_ar":
             self.head = ByteGridARHead(
                 cfg.d_model, cfg.pos_dim, codec,

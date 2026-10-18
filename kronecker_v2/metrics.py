@@ -24,7 +24,7 @@ import torch.nn.functional as F
 from torch import Tensor
 
 from kronecker_v2.codec import KroneckerCodec
-from kronecker_v2.config import HEAD_CHAR_DIM
+from kronecker_v2.config import HEAD_CHAR_DIM, PAD_IDX
 
 
 @torch.no_grad()
@@ -117,6 +117,23 @@ class Evaluator:
         return comparable_nll(scores, targets)
 
     @torch.no_grad()
+    def token_scores_bytegrid(self, slot_logits: Tensor) -> Tensor:
+        return bytegrid_token_scores(slot_logits, self.codec.byte_buffer)
+
+    @torch.no_grad()
+    def vocab_map_hits(self, token_scores: Tensor, targets: Tensor,
+                       k: int = 5) -> tuple[Tensor, Tensor]:
+        """Exact constrained decode: the best-scoring REAL token, i.e. the MAP
+        over the vocabulary (same optimum any trie search or beam of infinite
+        width would reach). Cannot emit an invalid token.
+
+        Returns (top1 hit [N] bool, top-k hit [N] bool), on CPU.
+        """
+        topk = token_scores.topk(k, dim=1).indices                  # [N, k]
+        hit = topk == targets.unsqueeze(1)
+        return hit[:, 0].cpu(), hit.any(dim=1).cpu()
+
+    @torch.no_grad()
     def exact_recovery(self, pred_bytes: Tensor, targets: Tensor) -> tuple[Tensor, Tensor]:
         """Greedy byte predictions vs target token ids.
 
@@ -148,6 +165,26 @@ class Evaluator:
             if m.sum() > 0:
                 out["by_decile"][str(d)] = {"n": int(m.sum()), "acc": float(correct[m].mean())}
         return out
+
+
+def active_slot_accuracy(pred_bytes: Tensor, target_bytes: Tensor) -> float:
+    """Fraction of REAL byte slots (target != PAD) predicted correctly.
+
+    Padding slots are excluded: a token that uses 5 of 32 slots would
+    otherwise score 27 free hits from predicting PAD. [..., P] x [..., P].
+    """
+    active = target_bytes != PAD_IDX
+    if active.sum() == 0:
+        return float("nan")
+    return float(((pred_bytes == target_bytes) & active).sum() / active.sum())
+
+
+def is_valid_utf8(bs: bytes) -> bool:
+    try:
+        bs.decode("utf-8")
+        return True
+    except UnicodeDecodeError:
+        return False
 
 
 def train_memory_gb(params: int, bytes_per_param: int = 16) -> float:

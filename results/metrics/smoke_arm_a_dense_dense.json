@@ -1,30 +1,31 @@
 {
   "name": "smoke_arm_a_dense_dense",
   "seed": 1337,
-  "wall_clock_sec": 6.2,
+  "resumed_from_step": 0,
+  "wall_clock_sec": 5.6,
   "tokens_seen": 983040,
-  "tokens_per_sec_last": 214446,
+  "tokens_per_sec_last": 228138,
   "params_total": 35984256,
   "params_input": 12582912,
   "params_head": 12582912,
   "params_trunk": 10818432,
   "train_memory_gb_16B_accounting": 0.576,
-  "own_loss": 8.990248680114746,
-  "comparable_nll": 8.990044593811035,
-  "ppl": 8022.8146552552735,
-  "exact_acc_unconstrained": 0.0863037109375,
-  "exact_acc_constrained": 0.0863037109375,
+  "own_loss": 8.990236282348633,
+  "comparable_nll": 8.990047454833984,
+  "ppl": 8022.837608744954,
+  "exact_acc_unconstrained": 0.08636474609375,
+  "exact_acc_constrained": 0.08636474609375,
   "invalid_rate": 0.0,
   "nll_positions": 32768,
   "breakdown_unconstrained": {
     "by_script": {
       "latin": {
         "n": 9269,
-        "acc": 0.051677635127845505
+        "acc": 0.05178552163124393
       },
       "devanagari": {
         "n": 23439,
-        "acc": 0.10021758607449123
+        "acc": 0.10026025001066598
       },
       "other": {
         "n": 60,
@@ -70,7 +71,7 @@
       },
       "9": {
         "n": 29859,
-        "acc": 0.09471181218393114
+        "acc": 0.09477879366355203
       }
     }
   },
@@ -78,11 +79,11 @@
     "by_script": {
       "latin": {
         "n": 9269,
-        "acc": 0.051677635127845505
+        "acc": 0.05178552163124393
       },
       "devanagari": {
         "n": 23439,
-        "acc": 0.10021758607449123
+        "acc": 0.10026025001066598
       },
       "other": {
         "n": 60,
@@ -128,7 +129,7 @@
       },
       "9": {
         "n": 29859,
-        "acc": 0.09471181218393114
+        "acc": 0.09477879366355203
       }
     }
   },

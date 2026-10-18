@@ -51,6 +51,8 @@ NLL_BATCHES = 8            # batches used for comparable-NLL (dense + parallel b
 EXACT_BATCHES = 4          # batches used for greedy exact-recovery
 CONSTRAINED_POSITIONS = 4096   # positions for trie-constrained decoding (python loop)
 AR_NLL_POSITIONS = 1024        # positions for the AR head's exact comparable-NLL
+HEARTBEAT_STEPS = 100          # train-loss progress line between evals
+EVAL_LOG_EVERY = 10            # progress line every N eval batches (final eval only)
 
 
 def lr_at(step: int, cfg) -> float:
@@ -68,14 +70,18 @@ def evaluate(model: LM, cfg: RunConfig, evaluator: Evaluator, trie: ByteTrie,
     m = cfg.model
     val = TokenBatcher(cfg.data.val_bin, m.seq_len, cfg.train.batch_size,
                        dtype=cfg.data.token_dtype, seed=0, device=device)
-    is_byte = m.output_head in ("bytegrid", "bytegrid_ar")
+    is_byte = m.output_head in ("bytegrid", "bytegrid_ar", "bytegrid_token")
+    token_bias = getattr(model.head, "token_bias", None)   # arm F only (None otherwise)
     is_ar = m.output_head == "bytegrid_ar"
 
     own_losses, nlls = [], []
     correct_u, correct_c, valid_u = [], [], []
     tgt_u, tgt_c = [], []
+    map_top1, map_top5 = [], []     # vocab-MAP decode (parallel byte heads only)
 
     for bi in range(cfg.train.eval_batches):
+        if final and bi % EVAL_LOG_EVERY == 0:
+            print(f"[{cfg.name}] eval batch {bi}/{cfg.train.eval_batches}", flush=True)
         x, y = val.next_batch()
         with torch.autocast("cuda", torch.bfloat16, enabled=cfg.train.amp and device.type == "cuda"):
             h = model.trunk(x)
@@ -89,7 +95,13 @@ def evaluate(model: LM, cfg: RunConfig, evaluator: Evaluator, trie: ByteTrie,
                 nlls.append(evaluator.token_nll_dense(logits, yf).cpu())
             elif not is_ar:
                 slot_logits = model.head(h).reshape(-1, m.pos_dim, 257)
-                nlls.append(evaluator.token_nll_bytegrid(slot_logits, yf).cpu())
+                scores = evaluator.token_scores_bytegrid(slot_logits)
+                if token_bias is not None:
+                    scores = scores + token_bias.float()
+                nlls.append(comparable_nll(scores, yf).cpu())
+                top1, top5 = evaluator.vocab_map_hits(scores, yf)
+                map_top1.append(top1)
+                map_top5.append(top5)
             elif bi == 0:
                 hf = h.reshape(-1, m.d_model)[:AR_NLL_POSITIONS]
                 scores = ar_token_scores(model.head, hf, model.codec.byte_buffer)
@@ -141,6 +153,9 @@ def evaluate(model: LM, cfg: RunConfig, evaluator: Evaluator, trie: ByteTrie,
         "invalid_rate": float(1 - vu.mean()),
         "nll_positions": int(sum(t.numel() for t in nlls)) if nlls else 0,
     }
+    if map_top1:
+        out["exact_acc_vocab_map"] = float(torch.cat(map_top1).float().mean())
+        out["top5_acc_vocab_map"] = float(torch.cat(map_top5).float().mean())
     if final:
         tgt = torch.cat(tgt_u).numpy()
         out["breakdown_unconstrained"] = evaluator.breakdown(cu, tgt)
@@ -250,7 +265,7 @@ def main() -> None:
     byte_strings, scripts, freqs = load_vocab_meta(cfg.data.tokenizer_dir)
     assert len(byte_strings) == cfg.model.vocab_size
     codec = KroneckerCodec(byte_strings, pos_dim=cfg.model.pos_dim).to(device)
-    model = LM(cfg.model, codec).to(device)
+    model = LM(cfg.model, codec, token_freqs=freqs).to(device)
     counts = model.param_counts()
     evaluator = Evaluator(codec, byte_strings, scripts, freqs, device)
     trie = ByteTrie(byte_strings, cfg.model.pos_dim)
@@ -293,6 +308,10 @@ def main() -> None:
         tokens_seen += x.numel()
         window_tokens += x.numel()
 
+        if (step + 1) % HEARTBEAT_STEPS == 0 and (step + 1) % cfg.train.eval_every != 0:
+            print(f"[{cfg.name}] step {step+1}/{cfg.train.max_steps} "
+                  f"loss {loss.item():.4f} elapsed {time.time() - t_start:.0f}s", flush=True)
+
         if (step + 1) % cfg.train.eval_every == 0 or step == cfg.train.max_steps - 1:
             if device.type == "cuda":
                 torch.cuda.synchronize()
@@ -306,8 +325,9 @@ def main() -> None:
             print(f"[{cfg.name}] step {step+1} train {loss.item():.4f} "
                   f"own {ev['own_loss']:.4f} nll {ev['comparable_nll']:.4f} "
                   f"ppl {ev['ppl']:.1f} exactU {ev['exact_acc_unconstrained']:.4f} "
-                  f"exactC {ev['exact_acc_constrained']:.4f} inv {ev['invalid_rate']:.4f} "
-                  f"tok/s {tokens_per_sec:.0f}")
+                  f"exactC {ev['exact_acc_constrained']:.4f} "
+                  f"exactMAP {ev.get('exact_acc_vocab_map', float('nan')):.4f} "
+                  f"inv {ev['invalid_rate']:.4f} tok/s {tokens_per_sec:.0f}", flush=True)
             window_tokens, window_t0 = 0, time.time()
 
         if (step + 1) % cfg.train.checkpoint_every == 0 or step == cfg.train.max_steps - 1:

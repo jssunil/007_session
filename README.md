@@ -7,6 +7,8 @@
 [![Tests](https://img.shields.io/badge/pytest-21%2F21%20passed-emerald.svg)](tests/)
 [![Interactive Dashboard](https://img.shields.io/badge/Interactive%20Showcase-Open%20Dashboard-indigo.svg)](interactive_dashboard.html)
 
+> **New to the idea?** [`FIRST_PRINCIPLES.md`](FIRST_PRINCIPLES.md) builds the method from the ground up (codec, heads, whole-token loss, tests) with the math for each step. Evidence status is in Section 6.
+
 ---
 
 ## 🎯 1. Target Problem Being Solved
@@ -49,13 +51,13 @@ Instead of regressing a continuous float vector or using expensive VAE/distance 
 - The fixed, untrained `KroneckerCodec` maps tokens into a $256 \times 32$ sparse grid code normalized by $1/\sqrt{L}$.
 - Unit tests (`tests/test_codec.py`, `tests/test_heads.py`, `tests/test_shapes.py`) prove 100% exact round-trip reconstruction ($21/21$ pytest units passing).
 
-### Pillar 3: Zero-Collision Audit Proof
+### Pillar 3: Zero-Collision Audit (accuracy ceiling, not an accuracy)
 - Measured on a 32,768-token BPE vocabulary (English + Hindi Wikipedia):
   $$\text{Collisions at } \text{pos\_dim}=32, 48, 64 \implies \mathbf{0 \text{ collision groups}}, \mathbf{0 \text{ tokens involved}}$$
   $$\text{Theoretical Accuracy Ceiling} = \mathbf{100.00\%}$$
 
-### Pillar 4: Controlled 5-Arm Empirical PyTorch Code Proof
-We implement 5 distinct architecture arms to isolate and measure input vs output parameter collapse, conditional independence, and shared projection tying:
+### Pillar 4: Controlled 5-Arm Experiment Design (full-length results pending; smoke results in Section 6.1)
+We implement 5 distinct architecture arms to isolate input vs output parameter collapse, conditional independence, and shared projection tying. The parameter columns below are counted from the code/formula; they are not quality results:
 
 | Arm | Input Path | Output Head | Total Params ($V=32K$) | Total Params ($V=131K$) | Head Params ($V=1M$) |
 |:---|:---|:---|:---:|:---:|:---:|
@@ -65,7 +67,7 @@ We implement 5 distinct architecture arms to isolate and measure input vs output
 | **Arm D** | Kronecker | **Byte-Grid + Local AR** | **17.64M** | **17.64M** | **77.20M** |
 | **Arm E** | Kronecker | **Tied Byte-Grid (Shared)** | **13.98M** | **13.98M** | **0.10M (Tied!)** |
 
-> 🌟 **Arm E (True Reversibility):** Ties the input projection matrix `Linear(8192, D)` with the transposed output head. The entire vocabulary interface collapses into **ONE single 66.3M parameter tensor** ($0.01\text{M}$ extra for PAD logit at $D=384$), literally fulfilling the instructor's goal of **"getting rid of the final head."**
+> **Arm E (tied, untested at scale):** Ties the input projection matrix `Linear(8192, D)` with the transposed output head, so the vocabulary interface is one shared tensor plus a small PAD logit. This is the structural form of the instructor's goal of "getting rid of the final head", but at smoke scale it does **not** yet produce valid tokens (see Section 6.1), so it is a hypothesis, not a result.
 
 ---
 
@@ -146,12 +148,44 @@ python experiments/run.py experiments/configs/arm_e_kron_bytegrid_tied.yaml
 
 ---
 
-## 📊 6. Summary of Measured Results
+## 📊 6. Evidence Status (read this before the claims)
 
-1. **Parameter Reduction:** Collapses output head parameters from $O(V \cdot D)$ to $O(D \cdot \text{POS\_DIM} \cdot \text{CHAR\_DIM})$, achieving **93.75% parameter reduction** at $V=131K$ and **99.18% reduction** at $V=1M$.
-2. **Codec Fidelity:** 100% exact round-trip reconstruction for all vocabulary entries.
-3. **Collision Security:** 0 collision groups detected at $pos\_dim=32$ on BPE subword vocabularies.
-4. **Head Elimination (Arm E):** Successfully ties input projection and output head weights into a single $8,192 \times D$ matrix, proving that a single shared byte basis can serve both directions.
+Every claim below is tagged by the strength of its evidence. Nothing in the "Smoke only" or "Not yet run" rows supports a claim that the byte-grid head can replace a dense head.
+
+| Claim | Evidence type | Status |
+|:---|:---|:---|
+| Head parameters are constant in $V$ ($D \times 8{,}224$ vs $D \times V$); 93.75% fewer at $V$=131K, 99.18% at $V$=1M | **Arithmetic** (formula, `vocab_scaling_arithmetic.json`), not a trained result. Break-even is only at $V > 8{,}224$. | Verified (arithmetic) |
+| Codec round-trips every vocabulary entry | Unit tests (`tests/test_codec.py`, 21/21 passing) | Verified |
+| 0 collision groups at `pos_dim` = 32/48/64 | Audit of the 32,768-token English+Hindi BPE vocab. This is an **upper bound on accuracy**, not an accuracy, and does not carry over to larger or other vocabularies. | Verified (ceiling only) |
+| Dense baseline (arm A) trains normally | Partial full run (checkpoint + log in `results/`), not yet finished | In progress |
+| Parallel / AR / tied byte-grid heads match a dense head | Smoke runs only (see 6.1). All three **fail** at smoke scale. | **Not demonstrated** |
+| Tying the input projection with the output head works | Only that it is implemented and trains for a few steps. No quality result. | **Not demonstrated** |
+| Constrained (trie) decoding, whole-token loss, distillation | Planned (see 6.2) | Not yet run |
+
+### 6.1 Smoke results (983,040 tokens, 1 seed, $D$=384) — NOT a benchmark
+
+These runs exist to check that the pipeline executes. They are far too short to rank architectures.
+
+| Arm | Head | Head params | Comparable token NLL | Invalid-token rate (unconstrained) | Exact acc (trie-constrained) | Wall clock |
+|:---|:---|:---:|:---:|:---:|:---:|:---:|
+| A | Dense | 12.58M | 8.99 | 0% | 8.6% | 6 s |
+| C | Parallel byte-grid | 3.16M | 8.45 | 98.9% | 1.2% | 15 s |
+| D | Byte-grid + local AR | 3.67M | 11.34 (1,024 positions only) | 99.97% | 0% | 1,072 s |
+| E | Tied byte-grid | 0.01M | 9.72 | 100% | 0% | 14 s |
+
+What this does and does not tell us:
+- Predicting 32 bytes independently almost never yields a real token (conditional-independence failure, as flagged in the risk list). Tying alone does not fix this.
+- The AR head is both worse and about 70x slower per run here. Its NLL is measured on 1,024 positions versus 32,768 for the others, so its number is not directly comparable.
+- Arm C's lower NLL than arm A at smoke scale is **not** evidence that it is better: both are near the untrained floor.
+
+### 6.2 What is being done about it (instructor feedback)
+
+1. Finish the matched full-length runs (same seed, steps and tokens) for arms A, C, D, E.
+2. Evaluate with trie-constrained decoding (greedy and beam) so outputs are always real vocabulary tokens; report constrained accuracy as the honest number.
+3. Add an arm trained with a whole-token softmax over the gathered byte scores (valid by construction), with a per-token log-frequency bias.
+4. Test distillation from the dense head and a refinement pass before making any head-replacement claim.
+
+This section will be replaced by generated tables from `results/metrics/` once the full runs exist.
 
 ---
 *Submitted for ERA V5 Session 7 — Solution to Problem 5.*

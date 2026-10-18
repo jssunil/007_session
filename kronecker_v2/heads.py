@@ -83,6 +83,92 @@ class ByteGridHead(nn.Module):
         return self.forward(h).argmax(dim=-1)
 
 
+class ByteGridTokenHead(ByteGridHead):
+    """Arm F: the byte-grid head trained with a WHOLE-TOKEN softmax over V.
+
+    Same projection and logits as ByteGridHead, but a token's score is the sum
+    of its own bytes' slot logits (PAD slots included) plus an optional
+    per-token bias, and the loss is cross-entropy over the vocabulary. Every
+    candidate is a real token, so the 32 slots are no longer treated as
+    independent classifications. (Per-slot log-softmax only subtracts a
+    per-slot constant that is the same for every token, so it cancels in the
+    softmax over V: raw logits and log-probs give the same loss.)
+
+    token_bias: one scalar per token, initialised to log unigram probability.
+    Equal-norm byte codes carry no frequency prior, so without it the head
+    cannot represent how common a token is. It adds V parameters (1 per token,
+    ~0.2% of a dense head) - the head is no longer strictly independent of V.
+    """
+
+    def __init__(self, d_model: int, pos_dim: int, codec: KroneckerCodec,
+                 tied_projection: nn.Linear | None = None,
+                 token_freqs=None, use_token_bias: bool = True,
+                 row_chunk: int = 2048):
+        super().__init__(d_model, pos_dim, codec, tied_projection=tied_projection)
+        self.row_chunk = row_chunk
+        self._index_cache: dict = {}
+        self.token_bias = None
+        if use_token_bias:
+            v = codec.vocab_size
+            if token_freqs is None:
+                init = torch.zeros(v)
+            else:
+                f = torch.as_tensor(token_freqs, dtype=torch.float32).clamp(min=1.0)
+                init = torch.log(f / f.sum())
+            self.token_bias = nn.Parameter(init)
+
+    def _cell_index(self, device: torch.device) -> Tensor:
+        """Fixed [V, P] table of flat cell ids: cell(v, p) = p*257 + b_p(v).
+
+        score(v) = sum_p S[p, b_p(v)] is a sum of P entries of vec(S) picked by
+        this table, i.e. an embedding_bag(mode="sum") whose "embedding table"
+        is vec(S)^T and whose bags are the tokens. Derived from the vocabulary,
+        never trained, and kept out of the state_dict (rebuilt per device).
+        """
+        cached = self._index_cache.get(device)
+        if cached is None:
+            buf = self.codec.byte_buffer
+            cached = (torch.arange(self.pos_dim, device=buf.device) * HEAD_CHAR_DIM + buf)
+            cached = cached.contiguous().to(device)
+            self._index_cache[device] = cached
+        return cached
+
+    def token_scores_gather(self, slot_logits: Tensor) -> Tensor:
+        """Reference implementation: P gathers. Kept for equivalence tests."""
+        buf = self.codec.byte_buffer
+        slot_logits = slot_logits.float()
+        acc = slot_logits[:, 0, :].index_select(1, buf[:, 0])
+        for p in range(1, self.pos_dim):
+            acc = acc + slot_logits[:, p, :].index_select(1, buf[:, p])
+        if self.token_bias is not None:
+            acc = acc + self.token_bias
+        return acc
+
+    def token_scores(self, slot_logits: Tensor) -> Tensor:
+        """[N, P, 257] -> [N, V]: sum of each token's own byte logits (+ bias)."""
+        n = slot_logits.shape[0]
+        x = slot_logits.float().reshape(n, -1).t().contiguous()      # [P*257, N]
+        acc = F.embedding_bag(self._cell_index(x.device), x, mode="sum").t()   # [N, V]
+        if self.token_bias is not None:
+            acc = acc + self.token_bias
+        return acc
+
+    def _chunk_loss(self, h_rows: Tensor, tgt: Tensor) -> Tensor:
+        slot_logits = self.forward(h_rows)                         # [n, P, 257]
+        return F.cross_entropy(self.token_scores(slot_logits), tgt, reduction="sum")
+
+    def loss(self, h: Tensor, target_ids: Tensor) -> Tensor:
+        from torch.utils.checkpoint import checkpoint
+        h_flat = h.reshape(-1, h.shape[-1])
+        tgt = target_ids.reshape(-1)
+        total = h_flat.new_zeros((), dtype=torch.float32)
+        # chunk + recompute in backward: bounds memory to row_chunk x V floats
+        for s in range(0, h_flat.shape[0], self.row_chunk):
+            total = total + checkpoint(self._chunk_loss, h_flat[s : s + self.row_chunk],
+                                       tgt[s : s + self.row_chunk], use_reentrant=False)
+        return total / h_flat.shape[0]
+
+
 class ByteGridARHead(nn.Module):
     """ByteGridHead's parallel logits + a small autoregressive corrector.
 

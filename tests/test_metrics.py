@@ -54,3 +54,31 @@ def test_bytegrid_nll_decreases_with_confidence():
     assert comparable_nll(s_strong, tid) < comparable_nll(s_weak, tid)
     # and with near-one-hot slots, the correct token dominates the vocab
     assert s_strong.argmax(dim=1).item() == 3
+
+
+def test_vocab_map_is_always_valid_and_recovers_clean_prediction():
+    """The vocab-MAP decode picks a real token even when the per-slot argmax
+    spells an invalid string, and top-1 equals the target on clean logits."""
+    import torch
+    from kronecker_v2.codec import KroneckerCodec
+    from kronecker_v2.metrics import Evaluator, bytegrid_token_scores
+    import numpy as np
+
+    vocab = [f"word{i:03d}".encode() for i in range(64)]
+    codec = KroneckerCodec(vocab, pos_dim=32)
+    ev = Evaluator(codec, vocab, ["latin"] * 64, np.arange(64), torch.device("cpu"))
+
+    targets = torch.tensor([3, 40])
+    tb, _ = codec.target_bytes(targets)
+    clean = torch.full((2, 32, 257), -10.0)
+    for i in range(2):
+        for p in range(32):
+            clean[i, p, tb[i, p]] = 5.0
+    scores = ev.token_scores_bytegrid(clean)
+    top1, top5 = ev.vocab_map_hits(scores, targets)
+    assert top1.all() and top5.all()
+
+    junk = torch.full((1, 32, 257), -10.0)
+    junk[:, :, ord("z")] = 5.0                       # argmax spells an invalid string
+    s = bytegrid_token_scores(junk, codec.byte_buffer)
+    assert 0 <= int(s.argmax(dim=1)) < 64

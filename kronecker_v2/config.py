@@ -28,8 +28,9 @@ class ModelConfig:
     dropout: float = 0.0
     vocab_size: int = 32768
     input_path: str = "dense"       # "dense" | "kronecker"
-    output_head: str = "dense"      # "dense" | "bytegrid" | "bytegrid_ar"
+    output_head: str = "dense"      # "dense" | "bytegrid" | "bytegrid_ar" | "bytegrid_token"
     tie_projection: bool = False
+    token_bias: bool = True         # bytegrid_token only: per-token bias, init log unigram prob
     pos_dim: int = DEFAULT_POS_DIM
     # Local AR decoder over byte slots (arm D only)
     ar_d_local: int = 128
