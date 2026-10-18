@@ -249,7 +249,11 @@ def main() -> None:
     ap.add_argument("config", type=str)
     ap.add_argument("--fresh", action="store_true",
                     help="ignore any existing checkpoint and start from step 0")
+    ap.add_argument("--gpu-duty", type=float, default=0.75,
+                    help="max fraction of wall time the GPU may be busy (training steps "
+                         "are followed by a sleep); 1.0 disables the cap")
     args = ap.parse_args()
+    duty = min(max(args.gpu_duty, 0.05), 1.0)
     cfg = RunConfig.load_yaml(args.config)
     seed_everything(cfg.train.seed)
     device = get_device(cfg.train.device)
@@ -295,6 +299,7 @@ def main() -> None:
     model.train()
 
     for step in range(start_step, cfg.train.max_steps):
+        t_step = time.time()
         lr = lr_at(step, cfg.train)
         for g in opt.param_groups:
             g["lr"] = lr
@@ -307,6 +312,11 @@ def main() -> None:
         opt.zero_grad(set_to_none=True)
         tokens_seen += x.numel()
         window_tokens += x.numel()
+
+        if duty < 1.0 and device.type == "cuda":
+            # Duty-cycle cap: idle for busy*(1/duty - 1) so the GPU is busy <= duty of wall time
+            torch.cuda.synchronize()
+            time.sleep((time.time() - t_step) * (1.0 / duty - 1.0))
 
         if (step + 1) % HEARTBEAT_STEPS == 0 and (step + 1) % cfg.train.eval_every != 0:
             print(f"[{cfg.name}] step {step+1}/{cfg.train.max_steps} "

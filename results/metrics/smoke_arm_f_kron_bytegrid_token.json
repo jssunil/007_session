@@ -2,22 +2,22 @@
   "name": "smoke_arm_f_kron_bytegrid_token",
   "seed": 1337,
   "resumed_from_step": 0,
-  "wall_clock_sec": 200.8,
+  "wall_clock_sec": 37.2,
   "tokens_seen": 983040,
-  "tokens_per_sec_last": 5294,
+  "tokens_per_sec_last": 36102,
   "params_total": 17154944,
   "params_input": 3145728,
   "params_head": 3190784,
   "params_trunk": 10818432,
   "train_memory_gb_16B_accounting": 0.274,
-  "own_loss": 5.204654932022095,
-  "comparable_nll": 5.204638957977295,
-  "ppl": 182.11510969030994,
+  "own_loss": 5.204603433609009,
+  "comparable_nll": 5.204606533050537,
+  "ppl": 182.10920471695144,
   "exact_acc_unconstrained": 0.0,
-  "exact_acc_constrained": 0.003662109375,
+  "exact_acc_constrained": 0.003173828125,
   "invalid_rate": 0.995452880859375,
   "nll_positions": 32768,
-  "exact_acc_vocab_map": 0.129638671875,
+  "exact_acc_vocab_map": 0.12969970703125,
   "top5_acc_vocab_map": 0.345794677734375,
   "breakdown_unconstrained": {
     "by_script": {
@@ -85,7 +85,7 @@
       },
       "devanagari": {
         "n": 2011,
-        "acc": 0.007458975634012929
+        "acc": 0.006464445549477871
       },
       "other": {
         "n": 12,
@@ -131,7 +131,7 @@
       },
       "9": {
         "n": 3501,
-        "acc": 0.004284490145672665
+        "acc": 0.0037132247929163096
       }
     }
   },
