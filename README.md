@@ -172,8 +172,14 @@ These runs exist to check that the pipeline executes. They are far too short to 
 | C | Parallel byte-grid | 3.16M | 8.45 | 98.9% | 1.2% | 15 s |
 | D | Byte-grid + local AR | 3.67M | 11.34 (1,024 positions only) | 99.97% | 0% | 1,072 s |
 | E | Tied byte-grid | 0.01M | 9.72 | 100% | 0% | 14 s |
+| F | Whole-token loss, no bias (ablation) | 3.16M | 6.75 | 87.8% | 3.4% (vocab-MAP) | 36 s |
+| F | Whole-token loss + log-unigram bias | 3.19M | 5.20 | 99.6% | 13.0% (vocab-MAP) | 37 s |
+
+Arm F trains the byte-grid scores with a cross-entropy over all V real tokens instead of per-slot losses (see `FIRST_PRINCIPLES.md`, Section 6). Its bias adds V parameters, so its head is no longer strictly constant in V. F rows ran with a 75% GPU duty cap; their wall clock includes the idle time. For F the "constrained" column is the vocab-MAP decode (best-scoring real token), which for a parallel head is the upper bound of any trie search.
 
 What this does and does not tell us:
+- Arm F's whole-token loss beats arms A and C even without the bias (6.75 vs 8.99 and 8.45). The bias lowers NLL further (5.20), most likely by supplying a frequency prior. Both F runs are 60 steps and one seed, so this is a hint, not a ranking.
+- Arm F's unconstrained output is still mostly invalid, because it is never trained slot by slot. Its value is the whole-token ranking, not free decoding.
 - Predicting 32 bytes independently almost never yields a real token (conditional-independence failure, as flagged in the risk list). Tying alone does not fix this.
 - The AR head is both worse and about 70x slower per run here. Its NLL is measured on 1,024 positions versus 32,768 for the others, so its number is not directly comparable.
 - Arm C's lower NLL than arm A at smoke scale is **not** evidence that it is better: both are near the untrained floor.

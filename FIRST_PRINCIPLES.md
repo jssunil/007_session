@@ -128,14 +128,15 @@ Smoke (983k tokens, 1 seed, 60 steps):
 |---|---|---|---|---|
 | A dense | 8.99 | n/a | 0% | 228k |
 | C parallel | 8.45 | 1.65% | 98.9% | 222k |
-| F whole-token + bias | 5.20 | 12.96% | 99.6% | 5.3k |
+| F whole-token + bias | 5.20 | 12.97% | 99.6% | 36k (after `embedding_bag`; 5.3k before; 75% GPU cap included) |
+| F whole-token, no bias | 6.75 | 3.4% | 87.8% | 37k |
 
 Caveats:
-- Arm F starts with a frequency prior and the others do not, so most of its early NLL gain is probably the prior. The ablation `token_bias: false` separates the loss change from the prior and has not been run.
+- Arm F with the bias starts with a frequency prior and the others do not. The `token_bias: false` ablation separates the two effects: the whole-token loss alone gives 6.75 (better than A 8.99 and C 8.45), and the prior takes it to 5.20. Both runs are 60 steps and one seed, so the split is a hint only.
 - Unconstrained greedy output stays invalid for arm F, because it is never trained per slot. Its value is the whole-token ranking.
-- Arm F is about 42× slower than arm C.
+- Arm F was about 42× slower than arm C with 32 gathers; with `embedding_bag` it is about 6× slower (36k vs 222k tokens/s).
 
-**The speed problem as math.** `score = Σ_p S[p, b_p(v)]` is a sparse linear map: the flattened logits (length 32 × 257 = 8,224) times a fixed 0/1 matrix `M` of shape `[8224, V]`, where column `v` has exactly 32 ones at `v`'s own (slot, byte) cells. Today it runs as 32 separate gathers, whose backward pass is a slow scatter-add. One sparse matrix multiply computes the same numbers in a single fused operation. `M` is fixed, so it adds no parameters. This is the next planned optimisation.
+**The speed problem as math.** `score = Σ_p S[p, b_p(v)]` is a sparse linear map: the flattened logits (length 32 × 257 = 8,224) times a fixed 0/1 matrix `M` of shape `[8224, V]`, where column `v` has exactly 32 ones at `v`'s own (slot, byte) cells. Today it runs as 32 separate gathers, whose backward pass is a slow scatter-add. A sparse-COO matmul computes the same numbers but was about 12× slower on CPU, so the code uses `F.embedding_bag(mode="sum")` over a fixed `[V, 32]` table of cell ids instead: the same sum, fused. `M` is fixed, so it adds no parameters. A test checks that values and gradients equal the 32-gather reference.
 
 ---
 
